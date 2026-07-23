@@ -1,0 +1,30 @@
+services:
+  api:
+    build: .
+    container_name: elinor-crm-web-api
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: elinor-crm-web-db
+    env_file:
+      - .env
+    volumes:
+      - elinor-postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  elinor-postgres-data:
