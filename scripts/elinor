@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+APP_NAME="Elinor CRM WEB"
+APP_VERSION="1.0.0"
 INSTALL_DIR="${ELINOR_HOME:-/opt/elinor-crm-web}"
 if [[ -n "${ELINOR_DEV_ROOT:-}" ]]; then
   INSTALL_DIR="${ELINOR_DEV_ROOT}"
@@ -9,11 +11,12 @@ COMPOSE=(docker compose)
 
 usage() {
   cat <<USAGE
-Elinor CRM WEB management CLI
+${APP_NAME} management CLI
 
 Usage: elinor <command> [args]
 
 Commands:
+  install    Install ${APP_NAME} on Ubuntu
   start      Start services
   stop       Stop services
   restart    Restart services
@@ -24,6 +27,7 @@ Commands:
   restore    Restore a PostgreSQL backup: elinor restore <file>
   migrate    Run database migrations when configured
   info       Show application information
+  help       Show this help text
 USAGE
 }
 
@@ -32,35 +36,85 @@ run_compose() {
   "${COMPOSE[@]}" "$@"
 }
 
-case "${1:-}" in
-  start) run_compose up -d ;;
-  stop) run_compose down ;;
-  restart) run_compose restart ;;
-  status) run_compose ps ;;
-  update) "${INSTALL_DIR}/update.sh" ;;
-  logs) run_compose logs -f "${@:2}" ;;
-  backup) "${INSTALL_DIR}/scripts/backup.sh" ;;
-  restore) shift; "${INSTALL_DIR}/scripts/restore.sh" "$@" ;;
-  migrate)
-    if run_compose exec -T api python -m alembic --version >/dev/null 2>&1; then
-      run_compose exec -T api alembic upgrade head
-    else
-      echo "No migrations configured yet."
-    fi
-    ;;
-  info)
-    cd "${INSTALL_DIR}"
-    if [[ -f .env ]]; then
-      set -a
-      # shellcheck disable=SC1091
-      source .env
-      set +a
-    fi
-    echo "Product: ${APP_NAME:-Elinor CRM WEB}"
-    echo "Version: ${APP_VERSION:-1.0.0}"
-    echo "Install directory: ${INSTALL_DIR}"
-    run_compose ps
-    ;;
-  -h|--help|help|"") usage ;;
-  *) echo "Unknown command: $1" >&2; usage >&2; exit 1 ;;
-esac
+run_command() {
+  case "${1:-}" in
+    install) "${INSTALL_DIR}/install.sh" ;;
+    start) run_compose up -d ;;
+    stop) run_compose down ;;
+    restart) run_compose restart ;;
+    status) run_compose ps ;;
+    update) "${INSTALL_DIR}/update.sh" ;;
+    logs) run_compose logs -f "${@:2}" ;;
+    backup) "${INSTALL_DIR}/scripts/backup.sh" ;;
+    restore) shift; "${INSTALL_DIR}/scripts/restore.sh" "$@" ;;
+    migrate)
+      if run_compose exec -T api python -m alembic --version >/dev/null 2>&1; then
+        run_compose exec -T api alembic upgrade head
+      else
+        echo "No migrations configured yet."
+      fi
+      ;;
+    info)
+      cd "${INSTALL_DIR}"
+      if [[ -f .env ]]; then
+        set -a
+        # shellcheck disable=SC1091
+        source .env
+        set +a
+      fi
+      echo "Product: ${APP_NAME}"
+      echo "Version: ${APP_VERSION}"
+      echo "Install directory: ${INSTALL_DIR}"
+      run_compose ps
+      ;;
+    -h|--help|help) usage ;;
+    *) echo "Unknown command: $1" >&2; usage >&2; exit 1 ;;
+  esac
+}
+
+interactive_menu() {
+  while true; do
+    cat <<MENU
+${APP_NAME} v${APP_VERSION}
+
+1. Install
+2. Start
+3. Stop
+4. Restart
+5. Status
+6. Update
+7. Backup
+8. Restore
+9. View Logs
+10. Database Migration
+11. Application Information
+0. Exit
+MENU
+    read -r -p "Select an option: " choice
+    case "${choice}" in
+      1) run_command install ;;
+      2) run_command start ;;
+      3) run_command stop ;;
+      4) run_command restart ;;
+      5) run_command status ;;
+      6) run_command update ;;
+      7) run_command backup ;;
+      8)
+        read -r -p "Backup file to restore: " backup_file
+        run_command restore "${backup_file}"
+        ;;
+      9) run_command logs ;;
+      10) run_command migrate ;;
+      11) run_command info ;;
+      0) exit 0 ;;
+      *) echo "Invalid option: ${choice}" >&2 ;;
+    esac
+    echo
+  done
+}
+
+if [[ $# -eq 0 ]]; then
+  interactive_menu
+else
+  run_command "$@"
+fi
