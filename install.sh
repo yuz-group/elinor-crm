@@ -114,7 +114,17 @@ verify_ubuntu
 verify_privileges
 install_dependencies
 "${SUDO[@]}" mkdir -p "${INSTALL_DIR}"
-"${SUDO[@]}" rsync -a --delete --exclude '.git' --exclude '.venv' --exclude '__pycache__' --exclude '.env' --exclude 'backups/*.sql' --exclude 'backups/*.sql.gz' "${SOURCE_DIR}/" "${INSTALL_DIR}/"
+# Never copy a checkout-local .env into production, and never delete an existing
+# deployed .env during --delete syncs because it contains persistent credentials.
+"${SUDO[@]}" rsync -a --delete \
+  --filter='H .env' \
+  --filter='P .env' \
+  --exclude '.git' \
+  --exclude '.venv' \
+  --exclude '__pycache__' \
+  --exclude 'backups/*.sql' \
+  --exclude 'backups/*.sql.gz' \
+  "${SOURCE_DIR}/" "${INSTALL_DIR}/"
 "${SUDO[@]}" mkdir -p "${INSTALL_DIR}/backups"
 create_env
 "${SUDO[@]}" ln -sf "${INSTALL_DIR}/scripts/elinor" /usr/local/bin/elinor
