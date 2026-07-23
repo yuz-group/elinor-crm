@@ -14,7 +14,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings)
 
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(title=settings.app_name, version=settings.app_version)
     app.include_router(health_router)
     register_exception_handlers(app)
     return app

@@ -16,7 +16,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = Field(default="Elinor CRM", alias="APP_NAME")
+    app_name: str = Field(default="Elinor CRM WEB", alias="APP_NAME")
+    app_version: str = Field(default="1.0.0", alias="APP_VERSION")
     environment: str = Field(default="development", alias="ENVIRONMENT")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALL_DIR="${ELINOR_HOME:-/opt/elinor-crm-web}"
+if [[ -n "${ELINOR_DEV_ROOT:-}" ]]; then
+  INSTALL_DIR="${ELINOR_DEV_ROOT}"
+fi
+COMPOSE=(docker compose)
+
+usage() {
+  cat <<USAGE
+Elinor CRM WEB management CLI
+
+Usage: elinor <command> [args]
+
+Commands:
+  start      Start services
+  stop       Stop services
+  restart    Restart services
+  status     Show service status
+  update     Update application from git and rebuild
+  logs       Follow service logs
+  backup     Create a PostgreSQL backup
+  restore    Restore a PostgreSQL backup: elinor restore <file>
+  migrate    Run database migrations when configured
+  info       Show application information
+USAGE
+}
+
+run_compose() {
+  cd "${INSTALL_DIR}"
+  "${COMPOSE[@]}" "$@"
+}
+
+case "${1:-}" in
+  start) run_compose up -d ;;
+  stop) run_compose down ;;
+  restart) run_compose restart ;;
+  status) run_compose ps ;;
+  update) "${INSTALL_DIR}/update.sh" ;;
+  logs) run_compose logs -f "${@:2}" ;;
+  backup) "${INSTALL_DIR}/scripts/backup.sh" ;;
+  restore) shift; "${INSTALL_DIR}/scripts/restore.sh" "$@" ;;
+  migrate)
+    if run_compose exec -T api python -m alembic --version >/dev/null 2>&1; then
+      run_compose exec -T api alembic upgrade head
+    else
+      echo "No migrations configured yet."
+    fi
+    ;;
+  info)
+    cd "${INSTALL_DIR}"
+    if [[ -f .env ]]; then
+      set -a
+      # shellcheck disable=SC1091
+      source .env
+      set +a
+    fi
+    echo "Product: ${APP_NAME:-Elinor CRM WEB}"
+    echo "Version: ${APP_VERSION:-1.0.0}"
+    echo "Install directory: ${INSTALL_DIR}"
+    run_compose ps
+    ;;
+  -h|--help|help|"") usage ;;
+  *) echo "Unknown command: $1" >&2; usage >&2; exit 1 ;;
+esac

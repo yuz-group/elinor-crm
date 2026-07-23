@@ -24,7 +24,12 @@ def test_health_returns_ok_when_database_is_available(client: TestClient) -> Non
         response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"application": "ok", "database": "ok"}
+    assert response.json() == {
+        "application": "ok",
+        "name": "Elinor CRM WEB",
+        "version": "1.0.0",
+        "database": "ok",
+    }
 
 
 def test_health_returns_unavailable_when_database_check_fails(client: TestClient) -> None:
@@ -34,4 +39,9 @@ def test_health_returns_unavailable_when_database_check_fails(client: TestClient
         response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"application": "ok", "database": "unavailable"}
+    assert response.json() == {
+        "application": "ok",
+        "name": "Elinor CRM WEB",
+        "version": "1.0.0",
+        "database": "unavailable",
+    }

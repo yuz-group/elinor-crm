@@ -1,48 +1,85 @@
-# Elinor CRM
+# Elinor CRM WEB
 
-Elinor CRM is in Phase 1: Core Foundation. This phase provides a FastAPI backend shell with environment-based configuration, structured logging setup, SQLAlchemy 2 database connectivity, and a health endpoint.
+Elinor CRM WEB v1.0.0 provides the deployment foundation for the web application. It includes a FastAPI service, PostgreSQL, Docker Compose orchestration, an Ubuntu installer, a global `elinor` management CLI, persistent database storage, and backup/restore operations.
+
+No CRM domain models are included yet.
 
 ## Requirements
 
-- Python 3.12
-- PostgreSQL
+- Ubuntu server with `sudo`
+- Docker Engine
+- Docker Compose v2 (`docker compose`)
+- `openssl` and `rsync` for installation
 
-## Local setup
+## Ubuntu installation
 
-1. Create and activate a virtual environment:
-
-   ```bash
-   python3.12 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Create local environment configuration:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Update `DATABASE_URL` in `.env` for your local PostgreSQL database.
-
-## Run the API
-
-Start the development server:
+Clone the repository onto the server, then run:
 
 ```bash
-uvicorn app.main:app --reload
+sudo ./install.sh
 ```
 
-The API will be available at `http://127.0.0.1:8000`.
+The installer copies the project to `/opt/elinor-crm-web` by default. Override the location with:
+
+```bash
+sudo env ELINOR_INSTALL_DIR=/opt/custom-elinor ./install.sh
+```
+
+On first install, `.env` is generated with secure random database and secret values, stored with `600` permissions, and not committed to git.
+
+## Services
+
+`docker-compose.yml` starts:
+
+- `api`: FastAPI application exposed on port `8000`
+- `db`: PostgreSQL 16 with persistent Docker volume storage
+
+Backups are written to the host `backups/` directory.
+
+## Management CLI
+
+The installer links the global `elinor` command to `/usr/local/bin/elinor`.
+
+```bash
+elinor start      # Start services
+elinor stop       # Stop services
+elinor restart    # Restart services
+elinor status     # Show service status
+elinor update     # Pull, rebuild, and restart
+elinor logs       # Follow logs
+elinor backup     # Create a PostgreSQL backup
+elinor restore backups/file.sql.gz
+elinor migrate    # Run migrations when configured
+elinor info       # Show product and deployment information
+```
+
+## Backup and restore
+
+Create a compressed PostgreSQL backup:
+
+```bash
+elinor backup
+```
+
+Restore a backup:
+
+```bash
+elinor restore backups/elinor-crm-web-YYYYMMDDTHHMMSSZ.sql.gz
+```
+
+## Updates
+
+Run:
+
+```bash
+elinor update
+```
+
+This pulls fast-forward git updates when installed from a git checkout, rebuilds the API image, restarts services, and runs a Python compile check inside the API container.
 
 ## Health check
 
-Check application and database status:
+Check application and database health:
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -53,13 +90,25 @@ Example response:
 ```json
 {
   "application": "ok",
+  "name": "Elinor CRM WEB",
+  "version": "1.0.0",
   "database": "ok"
 }
 ```
 
-If the database cannot be reached, the endpoint still returns HTTP 200 with `database` set to `unavailable`.
+If PostgreSQL cannot be reached, the endpoint returns HTTP 200 with `database` set to `unavailable`.
 
-## Run tests
+## Local development
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+Run tests:
 
 ```bash
 pytest

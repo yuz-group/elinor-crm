@@ -15,6 +15,8 @@ class HealthResponse(BaseModel):
     """Response schema for the health endpoint."""
 
     application: Literal["ok"]
+    name: str
+    version: str
     database: Literal["ok", "unavailable"]
 
 
@@ -22,11 +24,16 @@ class HealthResponse(BaseModel):
 def health() -> HealthResponse:
     """Return application and database health status."""
 
-    get_settings()
+    settings = get_settings()
     database_status: Literal["ok", "unavailable"] = "ok"
     try:
         check_database()
     except Exception:
         database_status = "unavailable"
 
-    return HealthResponse(application="ok", database=database_status)
+    return HealthResponse(
+        application="ok",
+        name=settings.app_name,
+        version=settings.app_version,
+        database=database_status,
+    )
