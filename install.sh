@@ -99,11 +99,16 @@ data = sys.stdin.read().strip()
 if not data:
     sys.exit(1)
 
+lines = [line for line in data.splitlines() if line.strip()]
+
 try:
-    parsed = json.loads(data)
-    rows = parsed if isinstance(parsed, list) else [parsed]
+    if len(lines) > 1:
+        rows = [json.loads(line) for line in lines]
+    else:
+        parsed = json.loads(data)
+        rows = parsed if isinstance(parsed, list) else [parsed]
 except json.JSONDecodeError:
-    rows = [json.loads(line) for line in data.splitlines() if line.strip()]
+    sys.exit(1)
 
 healthy = rows and all(
     row.get("State") == "running"
