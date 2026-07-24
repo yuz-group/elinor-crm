@@ -90,6 +90,30 @@ ENV
   fi
 }
 
+compose_services_healthy() {
+  python3 -c '
+import json
+import sys
+
+data = sys.stdin.read().strip()
+if not data:
+    sys.exit(1)
+
+try:
+    parsed = json.loads(data)
+    rows = parsed if isinstance(parsed, list) else [parsed]
+except json.JSONDecodeError:
+    rows = [json.loads(line) for line in data.splitlines() if line.strip()]
+
+healthy = rows and all(
+    row.get("State") == "running"
+    and row.get("Health", "healthy") in ("", "healthy")
+    for row in rows
+)
+sys.exit(0 if healthy else 1)
+'
+}
+
 wait_for_services() {
   local attempts=60 api_port
   api_port="$(grep -E '^API_PORT=' "${INSTALL_DIR}/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
@@ -97,7 +121,7 @@ wait_for_services() {
   cd "${INSTALL_DIR}"
   echo "Waiting for services to become healthy..."
   for _ in $(seq 1 "${attempts}"); do
-    if "${SUDO[@]}" docker compose ps --format json 2>/dev/null | python3 -c 'import json,sys; data=sys.stdin.read().strip(); parsed=json.loads(data) if data else []; rows=parsed if isinstance(parsed, list) else [json.loads(line) for line in data.splitlines() if line.strip()]; sys.exit(0 if rows and all(r.get("State") == "running" and r.get("Health", "healthy") in ("", "healthy") for r in rows) else 1)' && curl -fsS "http://127.0.0.1:${api_port}/health" >/dev/null; then
+    if "${SUDO[@]}" docker compose ps --format json 2>/dev/null | compose_services_healthy && curl -fsS "http://127.0.0.1:${api_port}/health" >/dev/null; then
       return 0
     fi
     sleep 2
